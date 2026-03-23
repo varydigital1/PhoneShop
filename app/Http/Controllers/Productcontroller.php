@@ -9,12 +9,36 @@ class Productcontroller extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $search = $request->query('search');
+        $perPage = (int) $request->query('per_page', 15);
+
+        $query = Product::with('category');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', function ($q2) use ($search) {
+                      $q2->where('cate_name', 'like', "%{$search}%")
+                         ->orWhere('item_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $products = $query->paginate($perPage);
+
         return response()->json([
             "message" => "Products retrieved successfully",
-            "list" => Product::with('category')->get(),
-            "total" => Product::count()
+            "list" => $products->items(),
+            "pagination" => [
+                "current_page" => $products->currentPage(),
+                "last_page"    => $products->lastPage(),
+                "per_page"     => $products->perPage(),
+                "total"        => $products->total(),
+                "from"         => $products->firstItem(),
+                "to"           => $products->lastItem(),
+            ],
         ]);
     }
 

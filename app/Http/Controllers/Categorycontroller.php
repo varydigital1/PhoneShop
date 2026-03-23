@@ -9,13 +9,34 @@ class Categorycontroller extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-         $categories = Category::all();
+        $search = $request->query('search');
+        $perPage = (int) $request->query('per_page', 15);
+
+        $query = Category::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('cate_name', 'like', "%{$search}%")
+                  ->orWhere('item_name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $categories = $query->paginate($perPage);
+
         return response()->json([
             'message' => 'Categories retrieved successfully',
-            'list' => $categories,
-            'total' => $categories->count()
+            'list' => $categories->items(),
+            'pagination' => [
+                'current_page' => $categories->currentPage(),
+                'last_page'    => $categories->lastPage(),
+                'per_page'     => $categories->perPage(),
+                'total'        => $categories->total(),
+                'from'         => $categories->firstItem(),
+                'to'           => $categories->lastItem(),
+            ],
         ]);
     }
 
