@@ -276,7 +276,7 @@
         function getPageRange(current, last, delta) {
             const range = [];
             const left  = Math.max(1, current - Math.floor(delta / 2));
-            const right = Math.min(last, left + delta - 1);
+            const right = Math.min(last, Math.max(left + delta - 1, current + Math.floor(delta / 2)));
 
             if (left > 1) {
                 range.push(1);
