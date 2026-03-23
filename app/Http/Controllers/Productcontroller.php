@@ -4,20 +4,60 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Models\Category;
 class Productcontroller extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
+    {
+    $query = Product::with('category');
+    //Search
+    if ($request->filled('search')) {
+        $query->where('product_name', 'LIKE', '%' . $request->search . '%');
+    }
+    //Filter by product ID
+    if ($request->filled('id')) {
+        $query->where('id', $request->id);
+    }
+    //Sorting
+    $sortBy = $request->get('sort_by', 'id');
+    $sortOrder = $request->get('sort_order', 'desc');
+    $query->orderBy($sortBy, $sortOrder);
+    // 📄 Pagination
+    $pageSize = $request->get('pageSize', 5);
+    $products = $query->paginate($pageSize);
+    return response()->json([
+        'status' => true,
+        'message' => 'Product list',
+        'List' => $products->items(),
+        'page' => [
+            // 'pageNumber' => $products->currentPage(),
+            // 'totalPages' => $products->lastPage(),
+            // 'pagesize' => $products->perPage(),
+            // 'totalElements' => $products->total(),
+            'pageSize'         => $products->perPage(),          // ចំនួនក្នុងមួយទំព័រ
+            'pageNumber'       => $products->currentPage(),      // លេខទំព័របច្ចុប្បន្ន
+            'totalPages'       => $products->lastPage(),         // ចំនួនទំព័រសរុប
+            'totalElements'    => $products->total(),            // ចំនួនធាតុសរុបក្នុង DB
+            'numberOfElements' => $products->count(),            // ចំនួនធាតុដែលមានក្នុងទំព័រនេះ
+            'first'            => $products->onFirstPage(),      // តើជាទំព័រដំបូងមែនទេ?
+            'last'             => !$products->hasMorePages(),    // តើជាទំព័រចុងក្រោយមែនទេ?
+            'empty'           => $products->isEmpty(),            // តើទំព័រនេះទទេមែនទេ?
+        ]
+    ]);
+    }
+    /**
+     * Display a listing of the resource.
+     */
+    public function getAllProducts()
     {
         return response()->json([
-            "message" => "Products retrieved successfully",
-            "list" => Product::with('category')->get(),
-            "total" => Product::count()
+            "message" => "All products retrieved successfully",
+            "list" => Product::with('category')->get()
         ]);
     }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -36,6 +76,11 @@ class Productcontroller extends Controller
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $imageUrl= $request->file('image')->store('products', 'public');
+        }
+        if(product::where('product_name', $request->product_name)->exists()){
+            return response()->json([
+                "message" => "Product name already exists"
+            ], 400);
         }
         $product = Product::create([
             "category_id" => $request->category_id,
